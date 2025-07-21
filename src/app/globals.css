@@ -1,26 +1,161 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 217 91.2% 59.8%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 91.2% 59.8%;
+
+    --radius: 0.5rem;
+
+    /* 폰트 변수 정의 */
+    --font-noto: var(--font-noto-sans-kr);
+  }
+
+  * {
+    @apply border-border;
+    /* 성능 최적화: 터치 하이라이트 제거 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  html {
+    /* 성능 최적화: 텍스트 크기 조정 방지 */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    /* 부드러운 스크롤 */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-noto), "Noto Sans KR", -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    /* 성능 최적화: 폰트 렌더링 최적화 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+    /* 모바일 스크롤 최적화 */
+    -webkit-overflow-scrolling: touch;
+    /* 레이아웃 시프트 방지 */
+    font-display: swap;
+  }
+
+  /* 성능 최적화: GPU 가속 활용 */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* 웹뷰용 기본 컨테이너 */
+  .webview-container {
+    @apply max-w-none mx-auto px-4 py-6;
+    min-height: 100vh;
+  }
+
+  /* 웹뷰용 섹션 패딩 (모바일 중심) */
+  .webview-section {
+    @apply py-8;
+  }
+
+  /* 터치 친화적 버튼 기본 스타일 */
+  .webview-button {
+    @apply min-h-[44px] px-6 py-3 text-base font-medium rounded-lg;
+    touch-action: manipulation;
+  }
+
+  /* 터치 친화적 입력 필드 */
+  .webview-input {
+    @apply min-h-[44px] px-4 py-3 text-base border rounded-lg;
+  }
+
+  /* 웹뷰용 카드 스타일 */
+  .webview-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4;
+  }
+
+  /* 성능 최적화된 그라데이션 */
+  .gradient-bg {
+    background: linear-gradient(135deg, #0066ff 0%, #00b8d9 100%);
+    /* GPU 가속 */
+    transform: translateZ(0);
+  }
+
+  .feature-card {
+    @apply bg-white p-6 rounded-xl shadow-lg hover:shadow-xl border border-gray-100;
+    transition: box-shadow 0.2s ease-in-out;
+    /* GPU 가속으로 애니메이션 최적화 */
+    will-change: box-shadow;
+  }
+
+  .section-padding {
+    @apply py-16 md:py-20;
+  }
+
+  /* 성능 최적화: 스크롤바 숨기기 */
+  .webview-scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .webview-scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 모바일 웹뷰용 텍스트 크기 */
+  .webview-text-xs {
+    @apply text-xs;
+  }
+  .webview-text-sm {
+    @apply text-sm;
+  }
+  .webview-text-base {
+    @apply text-base;
+  }
+  .webview-text-lg {
+    @apply text-lg;
+  }
+  .webview-text-xl {
+    @apply text-xl;
+  }
+  .webview-text-2xl {
+    @apply text-2xl;
+  }
+
+  /* 웹뷰용 간격 클래스 */
+  .webview-space-y-2 > * + * {
+    @apply mt-2;
+  }
+  .webview-space-y-4 > * + * {
+    @apply mt-4;
+  }
+  .webview-space-y-6 > * + * {
+    @apply mt-6;
+  }
 }
