@@ -136,12 +136,10 @@ export const uploadGuideToS3 = async (
       throw new Error(`지원하지 않는 파일 타입: ${file.type}`);
     }
 
-    // S3에 파일 업로드 (Authorization 헤더 없이)
+    // S3에 파일 업로드 (인터셉터에서 자동으로 토큰 제외됨)
     await apiClient.put(presignedUrl, uploadData, {
       headers: {
         "Content-Type": contentType,
-        // S3에는 Authorization 헤더 불필요하므로 명시적으로 제거
-        Authorization: undefined,
       },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {

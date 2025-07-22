@@ -12,21 +12,30 @@ const apiClient = axios.create({
 // 요청 인터셉터 - 어드민 토큰 처리
 apiClient.interceptors.request.use(
   (config) => {
-    // 어드민 토큰 확인 (기존 시스템 유지)
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("admin_auth_token")
-        : null;
+    // S3 presigned URL 요청인지 확인 (S3 URL은 토큰이 필요하지 않음)
+    const isS3Request = config.url && (
+      config.url.includes('.s3.') || 
+      config.url.includes('amazonaws.com') ||
+      config.url.includes('s3.')
+    );
 
-    if (token) {
-      // Bearer 접두사가 이미 있는지 확인
-      const bearerToken = token.startsWith("Bearer ")
-        ? token
-        : `Bearer ${token}`;
-      config.headers.Authorization = bearerToken;
+    if (!isS3Request) {
+      // 어드민 토큰 확인 (S3 요청이 아닐 때만)
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("admin_auth_token")
+          : null;
+
+      if (token) {
+        // Bearer 접두사가 이미 있는지 확인
+        const bearerToken = token.startsWith("Bearer ")
+          ? token
+          : `Bearer ${token}`;
+        config.headers.Authorization = bearerToken;
+      }
     }
 
-    console.log("API 요청:", config.method?.toUpperCase(), config.url);
+    console.log("API 요청:", config.method?.toUpperCase(), config.url, isS3Request ? "(S3)" : "");
     return config;
   },
   (error) => {
