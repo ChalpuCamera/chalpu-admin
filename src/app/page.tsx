@@ -172,6 +172,23 @@ export default function Home() {
     },
   ]);
 
+  // 일괄등록 관련 상태
+  const [batchSvgFiles, setBatchSvgFiles] = useState<File[]>([]);
+  const [batchImageFiles, setBatchImageFiles] = useState<File[]>([]);
+  const [batchMatchedPairs, setBatchMatchedPairs] = useState<
+    Array<{
+      baseName: string;
+      svgFile: File;
+      imageFile: File;
+    }>
+  >([]);
+  const [batchUnmatchedFiles, setBatchUnmatchedFiles] = useState<File[]>([]);
+
+  // 일괄등록 진행 상황 상태
+  const [isBatchUploading, setIsBatchUploading] = useState(false);
+  const [batchUploadProgress, setBatchUploadProgress] = useState(0);
+  const [currentBatchUploadIndex, setCurrentBatchUploadIndex] = useState(0);
+
   // 클라이언트에서만 렌더링하도록 설정
   useEffect(() => {
     setMounted(true);
@@ -216,6 +233,236 @@ export default function Home() {
     toast.success("토큰이 제거되었습니다.");
   };
 
+  // SVG 파일 일괄 선택 처리
+  const handleBatchSvgSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+      const svgFiles = files.filter((file) =>
+        /^image_\d+\.svg$/i.test(file.name)
+      );
+      setBatchSvgFiles(svgFiles);
+    },
+    []
+  );
+
+  // 이미지 파일 일괄 선택 처리
+  const handleBatchImageSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+      const imageFiles = files.filter((file) =>
+        /^image_\d+\.(png|jpg|jpeg)$/i.test(file.name)
+      );
+      setBatchImageFiles(imageFiles);
+    },
+    []
+  );
+
+  // 일괄등록 매칭 업데이트
+  const updateBatchMatching = useCallback(() => {
+    const matchedPairs: Array<{
+      baseName: string;
+      svgFile: File;
+      imageFile: File;
+    }> = [];
+    const unmatchedFiles: File[] = [];
+
+    // SVG 파일들을 기준으로 매칭 (image_00x 패턴)
+    batchSvgFiles.forEach((svgFile) => {
+      const baseName = svgFile.name.replace(/\.svg$/i, "");
+      const matchingImage = batchImageFiles.find(
+        (imgFile) => imgFile.name.replace(/\.(png|jpg|jpeg)$/i, "") === baseName
+      );
+
+      if (matchingImage) {
+        matchedPairs.push({
+          baseName,
+          svgFile,
+          imageFile: matchingImage,
+        });
+      } else {
+        unmatchedFiles.push(svgFile);
+      }
+    });
+
+    // 매칭되지 않은 이미지 파일들 추가
+    batchImageFiles.forEach((imgFile) => {
+      const baseName = imgFile.name.replace(/\.(png|jpg|jpeg)$/i, "");
+      const hasMatchingSvg = batchSvgFiles.some(
+        (svgFile) => svgFile.name.replace(/\.svg$/i, "") === baseName
+      );
+
+      if (!hasMatchingSvg) {
+        unmatchedFiles.push(imgFile);
+      }
+    });
+
+    setBatchMatchedPairs(matchedPairs);
+    setBatchUnmatchedFiles(unmatchedFiles);
+  }, [batchSvgFiles, batchImageFiles]);
+
+  // SVG를 안드로이드 Vector Drawable XML로 변환하는 함수
+  const convertSvgToAndroidXml = useCallback(
+    async (svgFile: File): Promise<File> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const svgContent = e.target?.result as string;
+            const xmlContent = await svg2vectordrawable(svgContent);
+
+            // 새로운 XML 파일명 생성
+            const originalName = svgFile.name.replace(/\.svg$/i, "");
+            const xmlFileName = `${originalName}.xml`;
+
+            // Blob을 File로 변환
+            const blob = new Blob([xmlContent], { type: "application/xml" });
+            const xmlFile = new File([blob], xmlFileName, {
+              type: "application/xml",
+              lastModified: Date.now(),
+            });
+
+            resolve(xmlFile);
+          } catch (error) {
+            console.error("SVG 파싱 오류:", error);
+            reject(
+              new Error(
+                "SVG를 안드로이드 Vector Drawable로 변환 중 오류가 발생했습니다."
+              )
+            );
+          }
+        };
+
+        reader.onerror = () => {
+          reject(new Error("파일 읽기 중 오류가 발생했습니다."));
+        };
+
+        reader.readAsText(svgFile);
+      });
+    },
+    []
+  );
+
+  // 가이드 목록 로드
+  const loadGuides = useCallback(async () => {
+    if (!authToken) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await getGuides({ page: 0, size: 1000 });
+      setGuides(response.content);
+      setSelectedGuides([]); // 가이드 목록이 변경될 때 선택 상태 초기화
+      setTokenStatus("valid");
+    } catch (error) {
+      console.error("Failed to load guides:", error);
+      setTokenStatus("invalid");
+      toast.error(
+        "가이드 목록을 불러오는데 실패했습니다. 토큰을 확인해주세요."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  // 일괄등록 처리
+  const processBatchFiles = useCallback(async () => {
+    if (batchMatchedPairs.length === 0) {
+      toast.error("매칭된 파일 쌍이 없습니다.");
+      return;
+    }
+
+    try {
+      setIsBatchUploading(true);
+      setBatchUploadProgress(0);
+      setCurrentBatchUploadIndex(0);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // 각 파일 쌍을 순차적으로 업로드
+      for (let i = 0; i < batchMatchedPairs.length; i++) {
+        const pair = batchMatchedPairs[i];
+        setCurrentBatchUploadIndex(i + 1);
+
+        try {
+          // SVG에서 XML 변환
+          const xmlFile = await convertSvgToAndroidXml(pair.svgFile);
+
+          // 랜덤 카테고리 선택
+          const categoryValues = Object.values(FoodCategory).filter(
+            (value) => typeof value === "number"
+          ) as number[];
+          const randomCategory =
+            categoryValues[Math.floor(Math.random() * categoryValues.length)];
+
+          // 서버에 직접 업로드
+          await uploadGuidePair(
+            pair.imageFile,
+            xmlFile,
+            pair.svgFile,
+            pair.baseName,
+            randomCategory,
+            `일괄등록된 ${pair.baseName} 가이드`,
+            [`일괄등록`, `자동생성`],
+            (progress) => {
+              const totalProgress =
+                ((i + progress / 100) / batchMatchedPairs.length) * 100;
+              setBatchUploadProgress(Math.round(totalProgress));
+            }
+          );
+
+          successCount++;
+          toast.success(`${pair.baseName} 업로드 완료!`);
+        } catch (error) {
+          errorCount++;
+          console.error(`${pair.baseName} 업로드 실패:`, error);
+          toast.error(
+            `${pair.baseName} 업로드 실패: ${
+              error instanceof Error ? error.message : "알 수 없는 오류"
+            }`
+          );
+        }
+      }
+
+      // 업로드 완료 후 상태 초기화
+      setIsBatchUploading(false);
+      setBatchUploadProgress(0);
+      setCurrentBatchUploadIndex(0);
+
+      // 일괄등록 상태 초기화
+      setBatchSvgFiles([]);
+      setBatchImageFiles([]);
+      setBatchMatchedPairs([]);
+      setBatchUnmatchedFiles([]);
+
+      // 파일 input 초기화
+      const svgInput = document.getElementById(
+        "batch-svg-upload"
+      ) as HTMLInputElement;
+      const imageInput = document.getElementById(
+        "batch-image-upload"
+      ) as HTMLInputElement;
+      if (svgInput) svgInput.value = "";
+      if (imageInput) imageInput.value = "";
+
+      // 최종 결과 표시
+      if (successCount > 0) {
+        toast.success(
+          `일괄등록 완료! 성공: ${successCount}개, 실패: ${errorCount}개`
+        );
+        // 가이드 목록 새로고침
+        loadGuides();
+      } else {
+        toast.error("모든 파일 업로드에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("일괄등록 처리 중 오류:", error);
+      toast.error("일괄등록 처리 중 오류가 발생했습니다.");
+    }
+  }, [batchMatchedPairs, convertSvgToAndroidXml, loadGuides]);
+
   // 토큰 테스트 함수
   const testToken = async () => {
     if (!authToken) {
@@ -234,35 +481,16 @@ export default function Home() {
     }
   };
 
-  // 가이드 목록 로드
-  const loadGuides = useCallback(async () => {
-    if (!authToken) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await getGuides({ page: 0, size: 50 });
-      setGuides(response.content);
-      setSelectedGuides([]); // 가이드 목록이 변경될 때 선택 상태 초기화
-      setTokenStatus("valid");
-    } catch (error) {
-      console.error("Failed to load guides:", error);
-      setTokenStatus("invalid");
-      toast.error(
-        "가이드 목록을 불러오는데 실패했습니다. 토큰을 확인해주세요."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [authToken]);
-
   useEffect(() => {
     if (mounted && authToken) {
       loadGuides();
     }
   }, [mounted, authToken, loadGuides]);
+
+  // 일괄등록 파일 상태 변경 시 매칭 업데이트
+  useEffect(() => {
+    updateBatchMatching();
+  }, [updateBatchMatching]);
 
   // 새 파일 트리플 추가
   const addNewTriple = () => {
@@ -289,45 +517,6 @@ export default function Home() {
   // 파일 트리플 제거
   const removeTriple = (id: string) => {
     setUploadTriples((prev) => prev.filter((triple) => triple.id !== id));
-  };
-
-  // SVG를 안드로이드 Vector Drawable XML로 변환하는 함수
-  const convertSvgToAndroidXml = async (svgFile: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const svgContent = e.target?.result as string;
-          const xmlContent = await svg2vectordrawable(svgContent);
-
-          // 새로운 XML 파일명 생성
-          const originalName = svgFile.name.replace(/\.svg$/i, "");
-          const xmlFileName = `${originalName}.xml`;
-
-          // Blob을 File로 변환
-          const blob = new Blob([xmlContent], { type: "application/xml" });
-          const xmlFile = new File([blob], xmlFileName, {
-            type: "application/xml",
-            lastModified: Date.now(),
-          });
-
-          resolve(xmlFile);
-        } catch (error) {
-          console.error("SVG 파싱 오류:", error);
-          reject(
-            new Error(
-              "SVG를 안드로이드 Vector Drawable로 변환 중 오류가 발생했습니다."
-            )
-          );
-        }
-      };
-
-      reader.onerror = () => {
-        reject(new Error("파일 읽기 중 오류가 발생했습니다."));
-      };
-
-      reader.readAsText(svgFile);
-    });
   };
 
   // 파일명 매칭 검증 함수 (3개 파일)
@@ -956,6 +1145,166 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        {/* 일괄등록 영역 */}
+        <Card
+          className={`mb-8 ${
+            !authToken ? "opacity-50 pointer-events-none" : ""
+          }`}
+        >
+          <CardHeader>
+            <CardTitle>일괄등록</CardTitle>
+            <CardDescription>
+              여러 개의 PNG/SVG 파일을 한번에 선택하여 자동으로 매칭하고 등록할
+              수 있습니다. 파일명은 &quot;image_001.svg&quot;와
+              &quot;image_001.png&quot; 형태여야 하며, 동일한 번호의 파일들이
+              자동으로 쌍으로 매칭됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <Label
+                    htmlFor="batch-svg-upload"
+                    className="text-sm font-medium"
+                  >
+                    SVG 파일 선택 (여러 개 선택 가능)
+                  </Label>
+                  <input
+                    id="batch-svg-upload"
+                    type="file"
+                    multiple
+                    accept=".svg,image/svg+xml"
+                    onChange={handleBatchSvgSelect}
+                    className="w-full p-2 border rounded-md text-sm"
+                    disabled={!authToken}
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor="batch-image-upload"
+                    className="text-sm font-medium"
+                  >
+                    이미지 파일 선택 (여러 개 선택 가능)
+                  </Label>
+                  <input
+                    id="batch-image-upload"
+                    type="file"
+                    multiple
+                    accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                    onChange={handleBatchImageSelect}
+                    className="w-full p-2 border rounded-md text-sm"
+                    disabled={!authToken}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={processBatchFiles}
+                  disabled={
+                    !authToken ||
+                    (batchSvgFiles.length === 0 &&
+                      batchImageFiles.length === 0) ||
+                    isBatchUploading
+                  }
+                  className="px-8"
+                >
+                  {isBatchUploading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      업로드 중... ({currentBatchUploadIndex}/
+                      {batchMatchedPairs.length})
+                    </div>
+                  ) : (
+                    "일괄등록 처리"
+                  )}
+                </Button>
+              </div>
+
+              {isBatchUploading && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>전체 진행률</span>
+                    <span>{batchUploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${batchUploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {(batchSvgFiles.length > 0 || batchImageFiles.length > 0) && (
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    선택된 파일 (SVG: {batchSvgFiles.length}개, 이미지:{" "}
+                    {batchImageFiles.length}개)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h5 className="font-medium text-purple-600 mb-1">
+                        SVG 파일 ({batchSvgFiles.length}개)
+                      </h5>
+                      <div className="space-y-1">
+                        {batchSvgFiles.map((file, index) => (
+                          <div key={index} className="text-purple-700">
+                            ✓ {file.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-blue-600 mb-1">
+                        이미지 파일 ({batchImageFiles.length}개)
+                      </h5>
+                      <div className="space-y-1">
+                        {batchImageFiles.map((file, index) => (
+                          <div key={index} className="text-blue-700">
+                            ✓ {file.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {batchMatchedPairs.length > 0 && (
+                    <div className="mt-4 p-3 bg-green-50 rounded-md">
+                      <h5 className="font-medium text-green-800 mb-2">
+                        매칭된 쌍 ({batchMatchedPairs.length}개)
+                      </h5>
+                      <div className="space-y-1 text-sm">
+                        {batchMatchedPairs.map((pair, index) => (
+                          <div key={index} className="text-green-700">
+                            ✓ {pair.baseName} (SVG + 이미지)
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {batchUnmatchedFiles.length > 0 && (
+                    <div className="mt-4 p-3 bg-yellow-50 rounded-md">
+                      <h5 className="font-medium text-yellow-800 mb-2">
+                        매칭되지 않은 파일 ({batchUnmatchedFiles.length}개)
+                      </h5>
+                      <div className="space-y-1 text-sm">
+                        {batchUnmatchedFiles.map((file, index) => (
+                          <div key={index} className="text-yellow-700">
+                            ⚠ {file.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 파일 업로드 영역 */}
         <Card
