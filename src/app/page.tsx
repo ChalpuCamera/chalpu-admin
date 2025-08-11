@@ -6,11 +6,11 @@ import {
   getGuides,
   deleteGuides,
   uploadGuidePair,
+  getSubCategories,
 } from "@/app/services/apis/guide";
 import {
   Guide,
-  FoodCategory,
-  FOOD_CATEGORY_OPTIONS,
+  SubCategory,
 } from "@/app/services/types/guide";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
 
   // 토큰 관리 상태
   const [authToken, setAuthToken] = useState("");
@@ -145,7 +146,7 @@ export default function Home() {
     error: string | null;
     completed: boolean;
     nameMatchError: boolean;
-    category: FoodCategory; // 선택된 카테고리
+    category: number; // 선택된 서브카테고리 ID
     content?: string; // 가이드 설명
     tags: string[]; // 태그 목록
     tagInput: string; // 태그 입력 필드
@@ -164,7 +165,7 @@ export default function Home() {
       error: null,
       completed: false,
       nameMatchError: false,
-      category: FoodCategory.COFFEE,
+      category: 1, // 기본값으로 첫 번째 서브카테고리 ID 설정
       content: "",
       tags: [],
       tagInput: "",
@@ -188,6 +189,29 @@ export default function Home() {
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchUploadProgress, setBatchUploadProgress] = useState(0);
   const [currentBatchUploadIndex, setCurrentBatchUploadIndex] = useState(0);
+
+  // 서브카테고리 목록 로드
+  const loadSubCategories = useCallback(async () => {
+    if (!authToken) return;
+
+    try {
+      const response = await getSubCategories();
+      setSubCategories(response.result);
+      
+      // 서브카테고리 로드 후 업로드 트리플의 기본 카테고리 설정
+      if (response.result.length > 0) {
+        setUploadTriples((prev) =>
+          prev.map((triple) => ({
+            ...triple,
+            category: triple.category === 1 ? response.result[0].id : triple.category,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load sub-categories:", error);
+      toast.error("서브카테고리 목록을 불러오는데 실패했습니다.");
+    }
+  }, [authToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 클라이언트에서만 렌더링하도록 설정
   useEffect(() => {
@@ -215,8 +239,9 @@ export default function Home() {
       setTokenStatus("valid");
       toast.success("토큰이 저장되었습니다.");
 
-      // 토큰 저장 후 가이드 목록 다시 로드
+      // 토큰 저장 후 가이드 목록과 서브카테고리 목록 다시 로드
       loadGuides();
+      loadSubCategories();
     } catch (error) {
       console.error("Failed to save token:", error);
       toast.error("토큰 저장에 실패했습니다.");
@@ -390,12 +415,10 @@ export default function Home() {
           // SVG에서 XML 변환
           const xmlFile = await convertSvgToAndroidXml(pair.svgFile);
 
-          // 랜덤 카테고리 선택
-          const categoryValues = Object.values(FoodCategory).filter(
-            (value) => typeof value === "number"
-          ) as number[];
-          const randomCategory =
-            categoryValues[Math.floor(Math.random() * categoryValues.length)];
+          // 랜덤 서브카테고리 선택
+          const randomCategory = subCategories.length > 0 
+            ? subCategories[Math.floor(Math.random() * subCategories.length)].id
+            : 1;
 
           // 서버에 직접 업로드
           await uploadGuidePair(
@@ -484,8 +507,9 @@ export default function Home() {
   useEffect(() => {
     if (mounted && authToken) {
       loadGuides();
+      loadSubCategories();
     }
-  }, [mounted, authToken, loadGuides]);
+  }, [mounted, authToken, loadGuides, loadSubCategories]);
 
   // 일괄등록 파일 상태 변경 시 매칭 업데이트
   useEffect(() => {
@@ -505,7 +529,7 @@ export default function Home() {
       error: null,
       completed: false,
       nameMatchError: false,
-      category: FoodCategory.COFFEE,
+      category: subCategories.length > 0 ? subCategories[0].id : 1,
       content: "",
       tags: [],
       tagInput: "",
@@ -1482,9 +1506,7 @@ export default function Home() {
                         id={`category-${triple.id}`}
                         value={triple.category}
                         onChange={(e) => {
-                          const selectedCategory = Number(
-                            e.target.value
-                          ) as FoodCategory;
+                          const selectedCategory = Number(e.target.value);
                           setUploadTriples((prev) =>
                             prev.map((t) =>
                               t.id === triple.id
@@ -1493,14 +1515,18 @@ export default function Home() {
                             )
                           );
                         }}
-                        disabled={triple.uploading || triple.completed}
+                        disabled={triple.uploading || triple.completed || subCategories.length === 0}
                         className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
-                        {FOOD_CATEGORY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
+                        {subCategories.length === 0 ? (
+                          <option disabled>서브카테고리 로딩 중...</option>
+                        ) : (
+                          subCategories.map((subCategory) => (
+                            <option key={subCategory.id} value={subCategory.id}>
+                              {subCategory.categoryName} - {subCategory.name}
+                            </option>
+                          ))
+                        )}
                       </select>
                     </div>
 

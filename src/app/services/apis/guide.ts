@@ -31,6 +31,7 @@ import {
   GuideApiResponse,
   Pageable,
   GuideUploadProgress,
+  SubCategoryListResponse,
 } from "../types/guide";
 
 /**
@@ -204,6 +205,16 @@ export const deleteGuides = async (guideIds: number[]): Promise<void> => {
     headers: getAdminHeaders(),
     data: request,
   });
+};
+
+/**
+ * 서브카테고리 목록 조회 (Admin)
+ */
+export const getSubCategories = async (): Promise<SubCategoryListResponse> => {
+  const response = await apiClient.get<SubCategoryListResponse>("/api/sub-categories", {
+    headers: getAdminHeaders(),
+  });
+  return response.data;
 };
 
 /**
