@@ -8,6 +8,8 @@ import {
   uploadGuidePair,
   getSubCategories,
   updateGuide,
+  getSubCategory,
+  updateSubCategoryTips,
 } from "@/app/services/apis/guide";
 import {
   Guide,
@@ -25,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -200,6 +203,14 @@ export default function Home() {
   const [isBatchUploading, setIsBatchUploading] = useState(false);
   const [batchUploadProgress, setBatchUploadProgress] = useState(0);
   const [currentBatchUploadIndex, setCurrentBatchUploadIndex] = useState(0);
+
+  // 팁 편집 모달 관리
+  const [showTipsModal, setShowTipsModal] = useState(false);
+  const [editingSubCategory, setEditingSubCategory] = useState<SubCategory | null>(null);
+  const [tipsContent, setTipsContent] = useState("");
+  
+  // 팁 관리용 선택된 카테고리
+  const [selectedTipsCategory, setSelectedTipsCategory] = useState<string>("all");
 
   // 서브카테고리 목록 로드
   const loadSubCategories = useCallback(async () => {
@@ -1095,6 +1106,57 @@ export default function Home() {
       console.error("Failed to update guide:", error);
       toast.error("가이드 수정에 실패했습니다.");
     }
+  };
+
+  // 팁 편집 모달 열기
+  const handleEditTips = async (subCategory: SubCategory) => {
+    setEditingSubCategory(subCategory);
+    try {
+      const details = await getSubCategory(subCategory.id);
+      setTipsContent(details.tips || "");
+      setShowTipsModal(true);
+    } catch (error) {
+      console.error("Failed to load subcategory details:", error);
+      toast.error("서브카테고리 정보를 불러오는데 실패했습니다.");
+      setTipsContent(subCategory.tips || "");
+      setShowTipsModal(true);
+    }
+  };
+
+  // 팁 저장 처리
+  const handleSaveTips = async () => {
+    if (!editingSubCategory) {
+      toast.error("편집할 카테고리 정보가 없습니다.");
+      return;
+    }
+
+    try {
+      await updateSubCategoryTips(editingSubCategory.id, tipsContent);
+      
+      // 서브카테고리 목록 업데이트
+      setSubCategories(prev =>
+        prev.map(cat =>
+          cat.id === editingSubCategory.id
+            ? { ...cat, tips: tipsContent }
+            : cat
+        )
+      );
+      
+      toast.success("팁이 성공적으로 저장되었습니다.");
+      setShowTipsModal(false);
+      setEditingSubCategory(null);
+      setTipsContent("");
+    } catch (error) {
+      console.error("Failed to update tips:", error);
+      toast.error("팁 저장에 실패했습니다.");
+    }
+  };
+
+  // 팁 편집 모달 닫기
+  const handleCloseTipsModal = () => {
+    setShowTipsModal(false);
+    setEditingSubCategory(null);
+    setTipsContent("");
   };
 
   // 가이드 목록에서 XML 다운로드 함수
@@ -2434,6 +2496,103 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        {/* 카테고리별 팁 관리 */}
+        <Card className="mt-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>카테고리별 팁 관리</CardTitle>
+                <CardDescription>
+                  각 카테고리에 대한 팁을 작성하고 관리하세요.
+                </CardDescription>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="tips-category-filter" className="text-sm font-medium">
+                  카테고리 선택:
+                </Label>
+                <select
+                  id="tips-category-filter"
+                  value={selectedTipsCategory}
+                  onChange={(e) => setSelectedTipsCategory(e.target.value)}
+                  className="p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">전체 카테고리</option>
+                  {Array.from(new Set(subCategories.map(cat => cat.categoryName))).map(categoryName => (
+                    <option key={categoryName} value={categoryName}>
+                      {categoryName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!authToken ? (
+              <div className="text-center py-8 text-gray-500">
+                인증 토큰을 설정하면 팁을 관리할 수 있습니다.
+              </div>
+            ) : subCategories.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                서브카테고리를 불러오는 중...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {subCategories
+                  .filter(subCategory => 
+                    selectedTipsCategory === "all" || 
+                    subCategory.categoryName === selectedTipsCategory
+                  )
+                  .map((subCategory) => (
+                    <div
+                      key={subCategory.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="font-medium text-sm text-blue-600">
+                            {subCategory.categoryName}
+                          </span>
+                          <span className="text-gray-400">&gt;</span>
+                          <span className="font-medium">{subCategory.name}</span>
+                        </div>
+                        {subCategory.tips ? (
+                          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded max-h-20 overflow-hidden">
+                            <div className="whitespace-pre-wrap overflow-hidden text-ellipsis">
+                              {subCategory.tips.length > 100 
+                                ? `${subCategory.tips.substring(0, 100)}...`
+                                : subCategory.tips
+                              }
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400">
+                            팁이 없습니다. 클릭하여 추가하세요.
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditTips(subCategory)}
+                        className="ml-4"
+                      >
+                        {subCategory.tips ? "편집" : "추가"}
+                      </Button>
+                    </div>
+                  ))}
+                {subCategories.filter(subCategory => 
+                  selectedTipsCategory === "all" || 
+                  subCategory.categoryName === selectedTipsCategory
+                ).length === 0 && selectedTipsCategory !== "all" && (
+                  <div className="text-center py-8 text-gray-500">
+                    선택한 카테고리에 서브카테고리가 없습니다.
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* 가이드 수정 모달 */}
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent className="sm:max-w-md">
@@ -2521,6 +2680,53 @@ export default function Home() {
               </Button>
               <Button onClick={handleUpdateGuide}>
                 수정 완료
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 팁 편집 모달 */}
+        <Dialog open={showTipsModal} onOpenChange={(open) => !open && handleCloseTipsModal()}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>팁 편집</DialogTitle>
+              <DialogDescription>
+                {editingSubCategory && (
+                  <>
+                    {editingSubCategory.categoryName} &gt; {editingSubCategory.name} 카테고리의 팁을 편집합니다.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tips-editor">팁 내용</Label>
+                <Textarea
+                  id="tips-editor"
+                  value={tipsContent}
+                  onChange={(e) => setTipsContent(e.target.value)}
+                  placeholder="이 카테고리에 대한 팁을 작성해주세요..."
+                  className="min-h-[200px] resize-y"
+                />
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                <p>• 멀티라인 텍스트를 입력할 수 있습니다.</p>
+                <p>• Enter 키를 사용하여 줄바꿈할 수 있습니다.</p>
+                <p>• 가이드 보기 섹션에서 카테고리별로 표시됩니다.</p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={handleCloseTipsModal}
+              >
+                취소
+              </Button>
+              <Button onClick={handleSaveTips}>
+                저장
               </Button>
             </DialogFooter>
           </DialogContent>

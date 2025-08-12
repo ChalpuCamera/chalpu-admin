@@ -32,6 +32,7 @@ import {
   Pageable,
   GuideUploadProgress,
   SubCategoryListResponse,
+  SubCategory,
 } from "../types/guide";
 
 /**
@@ -215,6 +216,32 @@ export const getSubCategories = async (): Promise<SubCategoryListResponse> => {
     headers: getAdminHeaders(),
   });
   return response.data;
+};
+
+/**
+ * 서브카테고리 상세 조회 (Admin)
+ */
+export const getSubCategory = async (id: number): Promise<SubCategory> => {
+  const response = await apiClient.get<GuideApiResponse<SubCategory>>(
+    `/api/sub-categories/${id}`,
+    { headers: getAdminHeaders() }
+  );
+  return response.data.result;
+};
+
+/**
+ * 서브카테고리 팁 수정 (Admin)
+ */
+export const updateSubCategoryTips = async (
+  id: number,
+  tips: string
+): Promise<SubCategory> => {
+  const response = await apiClient.patch<GuideApiResponse<SubCategory>>(
+    `/api/sub-categories/${id}`,
+    { tips },
+    { headers: getAdminHeaders() }
+  );
+  return response.data.result;
 };
 
 /**
