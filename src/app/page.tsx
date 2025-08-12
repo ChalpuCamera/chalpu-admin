@@ -11,10 +11,7 @@ import {
   getSubCategory,
   updateSubCategoryTips,
 } from "@/app/services/apis/guide";
-import {
-  Guide,
-  SubCategory,
-} from "@/app/services/types/guide";
+import { Guide, SubCategory } from "@/app/services/types/guide";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,12 +67,14 @@ const SvgImagePreview = ({
         </div>
         {!svgError ? (
           <>
-            <img
+            <Image
               src={`https://cdn.chalpu.com/${guide.svgS3Key}`}
               alt={`SVG preview of ${guide.fileName}`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               onLoad={handleSvgLoad}
               onError={handleSvgError}
-              className={`w-full h-full object-contain transition-opacity duration-300 ${
+              className={`object-contain transition-opacity duration-300 ${
                 svgLoading ? "opacity-0" : "opacity-100"
               }`}
             />
@@ -101,6 +100,7 @@ const SvgImagePreview = ({
           src={`https://cdn.chalpu.com/${guide.imageS3Key}`}
           alt={guide.fileName}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className={`${className} object-contain`}
         />
       </div>
@@ -145,8 +145,10 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // 카테고리 필터링 상태
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
-  const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState<string>("all");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("all");
+  const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] =
+    useState<string>("all");
 
   // 파일 트리플 업로드 관련 상태 (SVG, XML, 이미지)
   interface FileUploadTriple {
@@ -204,13 +206,13 @@ export default function Home() {
   const [batchUploadProgress, setBatchUploadProgress] = useState(0);
   const [currentBatchUploadIndex, setCurrentBatchUploadIndex] = useState(0);
 
-  // 팁 편집 모달 관리
-  const [showTipsModal, setShowTipsModal] = useState(false);
-  const [editingSubCategory, setEditingSubCategory] = useState<SubCategory | null>(null);
+  // 팁 인라인 편집 관리
+  const [editingTipsId, setEditingTipsId] = useState<number | null>(null);
   const [tipsContent, setTipsContent] = useState("");
-  
+
   // 팁 관리용 선택된 카테고리
-  const [selectedTipsCategory, setSelectedTipsCategory] = useState<string>("all");
+  const [selectedTipsCategory, setSelectedTipsCategory] =
+    useState<string>("all");
 
   // 서브카테고리 목록 로드
   const loadSubCategories = useCallback(async () => {
@@ -219,13 +221,14 @@ export default function Home() {
     try {
       const response = await getSubCategories();
       setSubCategories(response.result);
-      
+
       // 서브카테고리 로드 후 업로드 트리플의 기본 카테고리 설정
       if (response.result.length > 0) {
         setUploadTriples((prev) =>
           prev.map((triple) => ({
             ...triple,
-            category: triple.category === 1 ? response.result[0].id : triple.category,
+            category:
+              triple.category === 1 ? response.result[0].id : triple.category,
           }))
         );
       }
@@ -233,7 +236,7 @@ export default function Home() {
       console.error("Failed to load sub-categories:", error);
       toast.error("서브카테고리 목록을 불러오는데 실패했습니다.");
     }
-  }, [authToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authToken]);
 
   // 클라이언트에서만 렌더링하도록 설정
   useEffect(() => {
@@ -440,9 +443,11 @@ export default function Home() {
           const xmlFile = await convertSvgToAndroidXml(pair.svgFile);
 
           // 랜덤 서브카테고리 선택
-          const randomCategory = subCategories.length > 0 
-            ? subCategories[Math.floor(Math.random() * subCategories.length)].id
-            : 1;
+          const randomCategory =
+            subCategories.length > 0
+              ? subCategories[Math.floor(Math.random() * subCategories.length)]
+                  .id
+              : 1;
 
           // 서버에 직접 업로드
           await uploadGuidePair(
@@ -508,7 +513,7 @@ export default function Home() {
       console.error("일괄등록 처리 중 오류:", error);
       toast.error("일괄등록 처리 중 오류가 발생했습니다.");
     }
-  }, [batchMatchedPairs, convertSvgToAndroidXml, loadGuides]);
+  }, [batchMatchedPairs, convertSvgToAndroidXml, loadGuides, subCategories]);
 
   // 토큰 테스트 함수
   const testToken = async () => {
@@ -841,7 +846,6 @@ export default function Home() {
     }
   };
 
-
   // ID 목록으로 일괄삭제
   const handleBatchDeleteByIds = async () => {
     if (!authToken) {
@@ -969,7 +973,6 @@ export default function Home() {
     }
   };
 
-
   // 선택된 가이드 ID 복사
   const copySelectedIds = async () => {
     if (selectedGuides.length === 0) {
@@ -990,11 +993,15 @@ export default function Home() {
   const filteredAndSortedGuides = [...guides]
     .filter((guide) => {
       // 메인 카테고리 필터링
-      const mainCategoryMatch = selectedCategoryFilter === "all" || guide.categoryName === selectedCategoryFilter;
-      
+      const mainCategoryMatch =
+        selectedCategoryFilter === "all" ||
+        guide.categoryName === selectedCategoryFilter;
+
       // 서브 카테고리 필터링
-      const subCategoryMatch = selectedSubCategoryFilter === "all" || guide.subCategoryName === selectedSubCategoryFilter;
-      
+      const subCategoryMatch =
+        selectedSubCategoryFilter === "all" ||
+        guide.subCategoryName === selectedSubCategoryFilter;
+
       return mainCategoryMatch && subCategoryMatch;
     })
     .sort((a, b) => {
@@ -1057,9 +1064,12 @@ export default function Home() {
   const openEditModal = (guide: Guide) => {
     setEditingGuide(guide);
     setEditForm({
-      subCategoryId: subCategories.find(sc => 
-        sc.categoryName === guide.categoryName && sc.name === guide.subCategoryName
-      )?.id || 0,
+      subCategoryId:
+        subCategories.find(
+          (sc) =>
+            sc.categoryName === guide.categoryName &&
+            sc.name === guide.subCategoryName
+        )?.id || 0,
       content: guide.content || "",
       fileName: guide.fileName,
     });
@@ -1074,16 +1084,20 @@ export default function Home() {
     }
 
     try {
-      const updateData: { content?: string; subCategoryId?: number; fileName?: string } = {};
-      
+      const updateData: {
+        content?: string;
+        subCategoryId?: number;
+        fileName?: string;
+      } = {};
+
       if (editForm.subCategoryId !== 0) {
         updateData.subCategoryId = editForm.subCategoryId;
       }
-      
+
       if (editForm.content !== editingGuide.content) {
         updateData.content = editForm.content;
       }
-      
+
       if (editForm.fileName !== editingGuide.fileName) {
         updateData.fileName = editForm.fileName;
       }
@@ -1095,10 +1109,10 @@ export default function Home() {
       }
 
       await updateGuide(editingGuide.guideId, updateData);
-      
+
       // 가이드 목록 새로고침
       await loadGuides();
-      
+
       setShowEditModal(false);
       setEditingGuide(null);
       toast.success("가이드 정보가 수정되었습니다.");
@@ -1108,43 +1122,34 @@ export default function Home() {
     }
   };
 
-  // 팁 편집 모달 열기
-  const handleEditTips = async (subCategory: SubCategory) => {
-    setEditingSubCategory(subCategory);
+  // 팁 인라인 편집 시작
+  const handleStartEditTips = async (subCategory: SubCategory) => {
     try {
       const details = await getSubCategory(subCategory.id);
       setTipsContent(details.tips || "");
-      setShowTipsModal(true);
+      setEditingTipsId(subCategory.id);
     } catch (error) {
       console.error("Failed to load subcategory details:", error);
       toast.error("서브카테고리 정보를 불러오는데 실패했습니다.");
       setTipsContent(subCategory.tips || "");
-      setShowTipsModal(true);
+      setEditingTipsId(subCategory.id);
     }
   };
 
   // 팁 저장 처리
-  const handleSaveTips = async () => {
-    if (!editingSubCategory) {
-      toast.error("편집할 카테고리 정보가 없습니다.");
-      return;
-    }
-
+  const handleSaveTips = async (subCategoryId: number) => {
     try {
-      await updateSubCategoryTips(editingSubCategory.id, tipsContent);
-      
+      await updateSubCategoryTips(subCategoryId, tipsContent);
+
       // 서브카테고리 목록 업데이트
-      setSubCategories(prev =>
-        prev.map(cat =>
-          cat.id === editingSubCategory.id
-            ? { ...cat, tips: tipsContent }
-            : cat
+      setSubCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === subCategoryId ? { ...cat, tips: tipsContent } : cat
         )
       );
-      
+
       toast.success("팁이 성공적으로 저장되었습니다.");
-      setShowTipsModal(false);
-      setEditingSubCategory(null);
+      setEditingTipsId(null);
       setTipsContent("");
     } catch (error) {
       console.error("Failed to update tips:", error);
@@ -1152,10 +1157,9 @@ export default function Home() {
     }
   };
 
-  // 팁 편집 모달 닫기
-  const handleCloseTipsModal = () => {
-    setShowTipsModal(false);
-    setEditingSubCategory(null);
+  // 팁 편집 취소
+  const handleCancelEditTips = () => {
+    setEditingTipsId(null);
     setTipsContent("");
   };
 
@@ -1628,7 +1632,11 @@ export default function Home() {
                             )
                           );
                         }}
-                        disabled={triple.uploading || triple.completed || subCategories.length === 0}
+                        disabled={
+                          triple.uploading ||
+                          triple.completed ||
+                          subCategories.length === 0
+                        }
                         className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         {subCategories.length === 0 ? (
@@ -2053,24 +2061,46 @@ export default function Home() {
                       <Checkbox
                         id="select-all"
                         checked={
-                          selectedGuides.length === filteredAndSortedGuides.length &&
+                          selectedGuides.length ===
+                            filteredAndSortedGuides.length &&
                           filteredAndSortedGuides.length > 0 &&
-                          filteredAndSortedGuides.every(guide => selectedGuides.includes(guide.guideId))
+                          filteredAndSortedGuides.every((guide) =>
+                            selectedGuides.includes(guide.guideId)
+                          )
                         }
                         onCheckedChange={(checked) => {
                           if (checked) {
                             // 현재 필터링된 가이드들만 선택
-                            const newSelectedGuides = [...new Set([...selectedGuides, ...filteredAndSortedGuides.map(g => g.guideId)])];
+                            const newSelectedGuides = [
+                              ...new Set([
+                                ...selectedGuides,
+                                ...filteredAndSortedGuides.map(
+                                  (g) => g.guideId
+                                ),
+                              ]),
+                            ];
                             setSelectedGuides(newSelectedGuides);
                           } else {
                             // 현재 필터링된 가이드들만 선택 해제
-                            const filteredIds = filteredAndSortedGuides.map(g => g.guideId);
-                            setSelectedGuides(prev => prev.filter(id => !filteredIds.includes(id)));
+                            const filteredIds = filteredAndSortedGuides.map(
+                              (g) => g.guideId
+                            );
+                            setSelectedGuides((prev) =>
+                              prev.filter((id) => !filteredIds.includes(id))
+                            );
                           }
                         }}
                       />
                       <Label htmlFor="select-all" className="text-sm">
-                        전체 선택 ({selectedGuides.filter(id => filteredAndSortedGuides.some(g => g.guideId === id)).length}/{filteredAndSortedGuides.length})
+                        전체 선택 (
+                        {
+                          selectedGuides.filter((id) =>
+                            filteredAndSortedGuides.some(
+                              (g) => g.guideId === id
+                            )
+                          ).length
+                        }
+                        /{filteredAndSortedGuides.length})
                       </Label>
                     </div>
 
@@ -2135,20 +2165,36 @@ export default function Home() {
                                 }}
                               >
                                 <option value="all">
-                                  전체 서브 ({(() => {
-                                    const filtered = selectedCategoryFilter === "all" 
-                                      ? guides 
-                                      : guides.filter(g => g.categoryName === selectedCategoryFilter);
+                                  전체 서브 (
+                                  {(() => {
+                                    const filtered =
+                                      selectedCategoryFilter === "all"
+                                        ? guides
+                                        : guides.filter(
+                                            (g) =>
+                                              g.categoryName ===
+                                              selectedCategoryFilter
+                                          );
                                     return filtered.length;
-                                  })()}개)
+                                  })()}
+                                  개)
                                 </option>
                                 {(() => {
-                                  const availableGuides = selectedCategoryFilter === "all" 
-                                    ? guides 
-                                    : guides.filter(g => g.categoryName === selectedCategoryFilter);
-                                  
+                                  const availableGuides =
+                                    selectedCategoryFilter === "all"
+                                      ? guides
+                                      : guides.filter(
+                                          (g) =>
+                                            g.categoryName ===
+                                            selectedCategoryFilter
+                                        );
+
                                   const subCategories = [
-                                    ...new Set(availableGuides.map((g) => g.subCategoryName)),
+                                    ...new Set(
+                                      availableGuides.map(
+                                        (g) => g.subCategoryName
+                                      )
+                                    ),
                                   ];
 
                                   return subCategories.map((subCategory) => {
@@ -2156,7 +2202,10 @@ export default function Home() {
                                       (g) => g.subCategoryName === subCategory
                                     ).length;
                                     return (
-                                      <option key={subCategory} value={subCategory}>
+                                      <option
+                                        key={subCategory}
+                                        value={subCategory}
+                                      >
                                         {subCategory} ({count}개)
                                       </option>
                                     );
@@ -2507,7 +2556,10 @@ export default function Home() {
                 </CardDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Label htmlFor="tips-category-filter" className="text-sm font-medium">
+                <Label
+                  htmlFor="tips-category-filter"
+                  className="text-sm font-medium"
+                >
                   카테고리 선택:
                 </Label>
                 <select
@@ -2517,7 +2569,9 @@ export default function Home() {
                   className="p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">전체 카테고리</option>
-                  {Array.from(new Set(subCategories.map(cat => cat.categoryName))).map(categoryName => (
+                  {Array.from(
+                    new Set(subCategories.map((cat) => cat.categoryName))
+                  ).map((categoryName) => (
                     <option key={categoryName} value={categoryName}>
                       {categoryName}
                     </option>
@@ -2538,56 +2592,82 @@ export default function Home() {
             ) : (
               <div className="space-y-4">
                 {subCategories
-                  .filter(subCategory => 
-                    selectedTipsCategory === "all" || 
-                    subCategory.categoryName === selectedTipsCategory
+                  .filter(
+                    (subCategory) =>
+                      selectedTipsCategory === "all" ||
+                      subCategory.categoryName === selectedTipsCategory
                   )
                   .map((subCategory) => (
                     <div
                       key={subCategory.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      className="p-4 border rounded-lg hover:bg-gray-50"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="font-medium text-sm text-blue-600">
-                            {subCategory.categoryName}
-                          </span>
-                          <span className="text-gray-400">&gt;</span>
-                          <span className="font-medium">{subCategory.name}</span>
-                        </div>
-                        {subCategory.tips ? (
-                          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded max-h-20 overflow-hidden">
-                            <div className="whitespace-pre-wrap overflow-hidden text-ellipsis">
-                              {subCategory.tips.length > 100 
-                                ? `${subCategory.tips.substring(0, 100)}...`
-                                : subCategory.tips
-                              }
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400">
-                            팁이 없습니다. 클릭하여 추가하세요.
-                          </div>
-                        )}
+                      <div className="flex items-center space-x-2 mb-3">
+                        <span className="font-medium text-sm text-blue-600">
+                          {subCategory.categoryName}
+                        </span>
+                        <span className="text-gray-400">&gt;</span>
+                        <span className="font-medium">{subCategory.name}</span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditTips(subCategory)}
-                        className="ml-4"
-                      >
-                        {subCategory.tips ? "편집" : "추가"}
-                      </Button>
+
+                      {editingTipsId === subCategory.id ? (
+                        <div className="space-y-3">
+                          <Textarea
+                            value={tipsContent}
+                            onChange={(e) => setTipsContent(e.target.value)}
+                            placeholder="이 카테고리에 대한 팁을 작성해주세요..."
+                            className="min-h-[120px] resize-y"
+                          />
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveTips(subCategory.id)}
+                            >
+                              저장
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelEditTips}
+                            >
+                              취소
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {subCategory.tips ? (
+                            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded mb-3">
+                              <div className="whitespace-pre-wrap">
+                                {subCategory.tips}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-400 mb-3 p-3 bg-gray-50 rounded">
+                              팁이 없습니다. 편집 버튼을 클릭하여 추가하세요.
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStartEditTips(subCategory)}
+                          >
+                            {subCategory.tips ? "편집" : "추가"}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   ))}
-                {subCategories.filter(subCategory => 
-                  selectedTipsCategory === "all" || 
-                  subCategory.categoryName === selectedTipsCategory
-                ).length === 0 && selectedTipsCategory !== "all" && (
-                  <div className="text-center py-8 text-gray-500">
-                    선택한 카테고리에 서브카테고리가 없습니다.
-                  </div>
-                )}
+                {subCategories.filter(
+                  (subCategory) =>
+                    selectedTipsCategory === "all" ||
+                    subCategory.categoryName === selectedTipsCategory
+                ).length === 0 &&
+                  selectedTipsCategory !== "all" && (
+                    <div className="text-center py-8 text-gray-500">
+                      선택한 카테고리에 서브카테고리가 없습니다.
+                    </div>
+                  )}
               </div>
             )}
           </CardContent>
@@ -2609,16 +2689,16 @@ export default function Home() {
                     <p>가이드 ID: {editingGuide.guideId}</p>
                     <p>현재 파일명: {editingGuide.fileName}</p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="edit-category">카테고리</Label>
                     <select
                       id="edit-category"
                       value={editForm.subCategoryId}
                       onChange={(e) =>
-                        setEditForm(prev => ({
+                        setEditForm((prev) => ({
                           ...prev,
-                          subCategoryId: Number(e.target.value)
+                          subCategoryId: Number(e.target.value),
                         }))
                       }
                       className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -2640,9 +2720,9 @@ export default function Home() {
                       placeholder="가이드에 대한 설명을 입력하세요..."
                       value={editForm.content}
                       onChange={(e) =>
-                        setEditForm(prev => ({
+                        setEditForm((prev) => ({
                           ...prev,
-                          content: e.target.value
+                          content: e.target.value,
                         }))
                       }
                       className="text-sm"
@@ -2657,9 +2737,9 @@ export default function Home() {
                       placeholder="파일명을 입력하세요..."
                       value={editForm.fileName}
                       onChange={(e) =>
-                        setEditForm(prev => ({
+                        setEditForm((prev) => ({
                           ...prev,
-                          fileName: e.target.value
+                          fileName: e.target.value,
                         }))
                       }
                       className="text-sm"
@@ -2678,56 +2758,7 @@ export default function Home() {
               >
                 취소
               </Button>
-              <Button onClick={handleUpdateGuide}>
-                수정 완료
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* 팁 편집 모달 */}
-        <Dialog open={showTipsModal} onOpenChange={(open) => !open && handleCloseTipsModal()}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>팁 편집</DialogTitle>
-              <DialogDescription>
-                {editingSubCategory && (
-                  <>
-                    {editingSubCategory.categoryName} &gt; {editingSubCategory.name} 카테고리의 팁을 편집합니다.
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="tips-editor">팁 내용</Label>
-                <Textarea
-                  id="tips-editor"
-                  value={tipsContent}
-                  onChange={(e) => setTipsContent(e.target.value)}
-                  placeholder="이 카테고리에 대한 팁을 작성해주세요..."
-                  className="min-h-[200px] resize-y"
-                />
-              </div>
-              
-              <div className="text-sm text-gray-500">
-                <p>• 멀티라인 텍스트를 입력할 수 있습니다.</p>
-                <p>• Enter 키를 사용하여 줄바꿈할 수 있습니다.</p>
-                <p>• 가이드 보기 섹션에서 카테고리별로 표시됩니다.</p>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={handleCloseTipsModal}
-              >
-                취소
-              </Button>
-              <Button onClick={handleSaveTips}>
-                저장
-              </Button>
+              <Button onClick={handleUpdateGuide}>수정 완료</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
