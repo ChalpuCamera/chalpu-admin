@@ -7,6 +7,7 @@ import {
   deleteGuides,
   uploadGuidePair,
   getSubCategories,
+  updateGuide,
 } from "@/app/services/apis/guide";
 import {
   Guide,
@@ -60,23 +61,20 @@ const SvgImagePreview = ({
   return (
     <div className="w-full h-full flex space-x-2">
       {/* SVG 미리보기 */}
-      <div className="flex-1 relative overflow-hidden border rounded bg-gray-200">
+      <div className="flex-1 relative overflow-hidden border rounded">
         <div className="absolute top-1 left-1 z-10 text-xs bg-black bg-opacity-50 text-white px-1 rounded">
           SVG
         </div>
         {!svgError ? (
           <>
-            <object
-              data={`https://cdn.chalpu.com/${guide.svgS3Key}`}
-              type="image/svg+xml"
+            <img
+              src={`https://cdn.chalpu.com/${guide.svgS3Key}`}
+              alt={`SVG preview of ${guide.fileName}`}
               onLoad={handleSvgLoad}
               onError={handleSvgError}
-              className={`w-full h-full transition-opacity duration-300 ${
+              className={`w-full h-full object-contain transition-opacity duration-300 ${
                 svgLoading ? "opacity-0" : "opacity-100"
               }`}
-              style={{
-                objectFit: "contain",
-              }}
             />
             {svgLoading && (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -92,7 +90,7 @@ const SvgImagePreview = ({
       </div>
 
       {/* 이미지 미리보기 */}
-      <div className="flex-1 relative overflow-hidden border rounded bg-gray-50">
+      <div className="flex-1 relative overflow-hidden border rounded">
         <div className="absolute top-1 left-1 z-10 text-xs bg-black bg-opacity-50 text-white px-1 rounded">
           IMG
         </div>
@@ -130,9 +128,22 @@ export default function Home() {
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [batchDeleteIds, setBatchDeleteIds] = useState<string>("");
 
+  // 카테고리 수정 모달 관리
+  const [editingGuide, setEditingGuide] = useState<Guide | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    subCategoryId: 0,
+    content: "",
+    fileName: "",
+  });
+
   // 정렬 상태
   const [sortBy, setSortBy] = useState<"id" | "name" | "category">("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // 카테고리 필터링 상태
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
+  const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState<string>("all");
 
   // 파일 트리플 업로드 관련 상태 (SVG, XML, 이미지)
   interface FileUploadTriple {
@@ -379,6 +390,8 @@ export default function Home() {
       const response = await getGuides({ page: 0, size: 1000 });
       setGuides(response.content);
       setSelectedGuides([]); // 가이드 목록이 변경될 때 선택 상태 초기화
+      setSelectedCategoryFilter("all"); // 카테고리 필터도 초기화
+      setSelectedSubCategoryFilter("all"); // 서브 카테고리 필터도 초기화
       setTokenStatus("valid");
     } catch (error) {
       console.error("Failed to load guides:", error);
@@ -817,14 +830,6 @@ export default function Home() {
     }
   };
 
-  // 전체 선택/해제
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedGuides(guides.map((g) => g.guideId));
-    } else {
-      setSelectedGuides([]);
-    }
-  };
 
   // ID 목록으로 일괄삭제
   const handleBatchDeleteByIds = async () => {
@@ -953,25 +958,6 @@ export default function Home() {
     }
   };
 
-  // 카테고리별 선택
-  const handleSelectByCategory = (categoryName: string) => {
-    const categoryIds = guides
-      .filter((g) => g.categoryName === categoryName)
-      .map((g) => g.guideId);
-
-    setSelectedGuides((prev) => {
-      const newSelection = [...prev];
-      categoryIds.forEach((id) => {
-        if (!newSelection.includes(id)) {
-          newSelection.push(id);
-        }
-      });
-      return newSelection;
-    });
-    toast.success(
-      `'${categoryName}' 카테고리의 가이드 ${categoryIds.length}개를 선택했습니다.`
-    );
-  };
 
   // 선택된 가이드 ID 복사
   const copySelectedIds = async () => {
@@ -989,29 +975,39 @@ export default function Home() {
     }
   };
 
-  // 가이드 정렬 함수
-  const sortedGuides = [...guides].sort((a, b) => {
-    let comparison = 0;
+  // 가이드 필터링 및 정렬 함수
+  const filteredAndSortedGuides = [...guides]
+    .filter((guide) => {
+      // 메인 카테고리 필터링
+      const mainCategoryMatch = selectedCategoryFilter === "all" || guide.categoryName === selectedCategoryFilter;
+      
+      // 서브 카테고리 필터링
+      const subCategoryMatch = selectedSubCategoryFilter === "all" || guide.subCategoryName === selectedSubCategoryFilter;
+      
+      return mainCategoryMatch && subCategoryMatch;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
 
-    switch (sortBy) {
-      case "id":
-        comparison = a.guideId - b.guideId;
-        break;
-      case "name":
-        comparison = a.fileName.localeCompare(b.fileName);
-        break;
-      case "category":
-        comparison =
-          a.categoryName.localeCompare(b.categoryName) ||
-          a.subCategoryName.localeCompare(b.subCategoryName) ||
-          a.fileName.localeCompare(b.fileName);
-        break;
-      default:
-        return 0;
-    }
+      switch (sortBy) {
+        case "id":
+          comparison = a.guideId - b.guideId;
+          break;
+        case "name":
+          comparison = a.fileName.localeCompare(b.fileName);
+          break;
+        case "category":
+          comparison =
+            a.categoryName.localeCompare(b.categoryName) ||
+            a.subCategoryName.localeCompare(b.subCategoryName) ||
+            a.fileName.localeCompare(b.fileName);
+          break;
+        default:
+          return 0;
+      }
 
-    return sortOrder === "asc" ? comparison : -comparison;
-  });
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
 
   // 정렬 변경 핸들러
   const handleSortChange = (newSortBy: "id" | "name" | "category") => {
@@ -1043,6 +1039,61 @@ export default function Home() {
         return "❌ 유효하지 않은 토큰";
       default:
         return "⚠️ 토큰 없음";
+    }
+  };
+
+  // 카테고리 수정 모달 열기
+  const openEditModal = (guide: Guide) => {
+    setEditingGuide(guide);
+    setEditForm({
+      subCategoryId: subCategories.find(sc => 
+        sc.categoryName === guide.categoryName && sc.name === guide.subCategoryName
+      )?.id || 0,
+      content: guide.content || "",
+      fileName: guide.fileName,
+    });
+    setShowEditModal(true);
+  };
+
+  // 가이드 정보 수정 처리
+  const handleUpdateGuide = async () => {
+    if (!editingGuide || !authToken) {
+      toast.error("수정할 가이드 정보가 없습니다.");
+      return;
+    }
+
+    try {
+      const updateData: { content?: string; subCategoryId?: number; fileName?: string } = {};
+      
+      if (editForm.subCategoryId !== 0) {
+        updateData.subCategoryId = editForm.subCategoryId;
+      }
+      
+      if (editForm.content !== editingGuide.content) {
+        updateData.content = editForm.content;
+      }
+      
+      if (editForm.fileName !== editingGuide.fileName) {
+        updateData.fileName = editForm.fileName;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        toast.info("변경된 내용이 없습니다.");
+        setShowEditModal(false);
+        return;
+      }
+
+      await updateGuide(editingGuide.guideId, updateData);
+      
+      // 가이드 목록 새로고침
+      await loadGuides();
+      
+      setShowEditModal(false);
+      setEditingGuide(null);
+      toast.success("가이드 정보가 수정되었습니다.");
+    } catch (error) {
+      console.error("Failed to update guide:", error);
+      toast.error("가이드 수정에 실패했습니다.");
     }
   };
 
@@ -1931,7 +1982,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            {authToken && sortedGuides.length > 0 && (
+            {authToken && guides.length > 0 && (
               <div className="space-y-4 pt-4 border-t">
                 {/* 선택 기반 삭제 */}
                 <div className="flex items-center justify-between">
@@ -1940,13 +1991,24 @@ export default function Home() {
                       <Checkbox
                         id="select-all"
                         checked={
-                          selectedGuides.length === guides.length &&
-                          guides.length > 0
+                          selectedGuides.length === filteredAndSortedGuides.length &&
+                          filteredAndSortedGuides.length > 0 &&
+                          filteredAndSortedGuides.every(guide => selectedGuides.includes(guide.guideId))
                         }
-                        onCheckedChange={handleSelectAll}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            // 현재 필터링된 가이드들만 선택
+                            const newSelectedGuides = [...new Set([...selectedGuides, ...filteredAndSortedGuides.map(g => g.guideId)])];
+                            setSelectedGuides(newSelectedGuides);
+                          } else {
+                            // 현재 필터링된 가이드들만 선택 해제
+                            const filteredIds = filteredAndSortedGuides.map(g => g.guideId);
+                            setSelectedGuides(prev => prev.filter(id => !filteredIds.includes(id)));
+                          }
+                        }}
                       />
                       <Label htmlFor="select-all" className="text-sm">
-                        전체 선택 ({selectedGuides.length}/{guides.length})
+                        전체 선택 ({selectedGuides.filter(id => filteredAndSortedGuides.some(g => g.guideId === id)).length}/{filteredAndSortedGuides.length})
                       </Label>
                     </div>
 
@@ -1971,26 +2033,24 @@ export default function Home() {
                         </>
                       )}
 
-                      {/* 카테고리별 빠른 선택 */}
+                      {/* 메인 카테고리 필터 */}
                       {(() => {
                         const categories = [
                           ...new Set(guides.map((g) => g.categoryName)),
                         ];
                         return (
                           categories.length > 1 && (
-                            <div className="relative">
+                            <div className="flex items-center gap-2">
                               <select
                                 className="p-1 text-xs border rounded bg-white"
+                                value={selectedCategoryFilter}
                                 onChange={(e) => {
-                                  if (e.target.value) {
-                                    handleSelectByCategory(e.target.value);
-                                    e.target.value = ""; // 선택 초기화
-                                  }
+                                  setSelectedCategoryFilter(e.target.value);
+                                  setSelectedSubCategoryFilter("all"); // 메인 카테고리 변경 시 서브 카테고리 초기화
                                 }}
-                                defaultValue=""
                               >
-                                <option value="" disabled>
-                                  카테고리 선택
+                                <option value="all">
+                                  전체 메인 ({guides.length}개)
                                 </option>
                                 {categories.map((category) => {
                                   const count = guides.filter(
@@ -2002,6 +2062,44 @@ export default function Home() {
                                     </option>
                                   );
                                 })}
+                              </select>
+
+                              {/* 서브 카테고리 필터 */}
+                              <select
+                                className="p-1 text-xs border rounded bg-white"
+                                value={selectedSubCategoryFilter}
+                                onChange={(e) => {
+                                  setSelectedSubCategoryFilter(e.target.value);
+                                }}
+                              >
+                                <option value="all">
+                                  전체 서브 ({(() => {
+                                    const filtered = selectedCategoryFilter === "all" 
+                                      ? guides 
+                                      : guides.filter(g => g.categoryName === selectedCategoryFilter);
+                                    return filtered.length;
+                                  })()}개)
+                                </option>
+                                {(() => {
+                                  const availableGuides = selectedCategoryFilter === "all" 
+                                    ? guides 
+                                    : guides.filter(g => g.categoryName === selectedCategoryFilter);
+                                  
+                                  const subCategories = [
+                                    ...new Set(availableGuides.map((g) => g.subCategoryName)),
+                                  ];
+
+                                  return subCategories.map((subCategory) => {
+                                    const count = availableGuides.filter(
+                                      (g) => g.subCategoryName === subCategory
+                                    ).length;
+                                    return (
+                                      <option key={subCategory} value={subCategory}>
+                                        {subCategory} ({count}개)
+                                      </option>
+                                    );
+                                  });
+                                })()}
                               </select>
                             </div>
                           )
@@ -2168,15 +2266,19 @@ export default function Home() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">로딩 중...</p>
               </div>
-            ) : sortedGuides.length === 0 ? (
+            ) : guides.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 업로드된 가이드가 없습니다.
+              </div>
+            ) : filteredAndSortedGuides.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                선택한 카테고리에 가이드가 없습니다.
               </div>
             ) : (
               <div className="h-[32rem] overflow-auto">
                 {viewMode === "grid" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {sortedGuides.map((guide) => (
+                    {filteredAndSortedGuides.map((guide) => (
                       <div
                         key={guide.guideId}
                         className={`border rounded-lg p-3 transition-all ${
@@ -2218,14 +2320,22 @@ export default function Home() {
                             {guide.content && <p>설명: {guide.content}</p>}
                             {guide.tags && <p>태그: {guide.tags.join(", ")}</p>}
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(guide)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              수정
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleGuideXmlDownload(guide)}
                               className="h-7 px-2 text-xs"
                             >
-                              XML 다운로드
+                              XML
                             </Button>
                             <Button
                               variant="destructive"
@@ -2242,7 +2352,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {sortedGuides.map((guide) => (
+                    {filteredAndSortedGuides.map((guide) => (
                       <div
                         key={guide.guideId}
                         className={`border rounded-lg p-3 flex items-center justify-between transition-all ${
@@ -2288,14 +2398,22 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="flex-shrink-0">
-                          <div className="flex space-x-2">
+                          <div className="flex space-x-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(guide)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              수정
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleGuideXmlDownload(guide)}
                               className="h-7 px-2 text-xs"
                             >
-                              XML 다운로드
+                              XML
                             </Button>
                             <Button
                               variant="destructive"
@@ -2315,6 +2433,98 @@ export default function Home() {
             )}
           </CardContent>
         </Card>
+
+        {/* 가이드 수정 모달 */}
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>가이드 정보 수정</DialogTitle>
+              <DialogDescription>
+                가이드의 카테고리, 설명, 파일명을 수정할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {editingGuide && (
+                <>
+                  <div className="text-sm text-gray-600">
+                    <p>가이드 ID: {editingGuide.guideId}</p>
+                    <p>현재 파일명: {editingGuide.fileName}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category">카테고리</Label>
+                    <select
+                      id="edit-category"
+                      value={editForm.subCategoryId}
+                      onChange={(e) =>
+                        setEditForm(prev => ({
+                          ...prev,
+                          subCategoryId: Number(e.target.value)
+                        }))
+                      }
+                      className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value={0}>변경하지 않음</option>
+                      {subCategories.map((subCategory) => (
+                        <option key={subCategory.id} value={subCategory.id}>
+                          {subCategory.categoryName} - {subCategory.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-content">설명</Label>
+                    <Input
+                      id="edit-content"
+                      type="text"
+                      placeholder="가이드에 대한 설명을 입력하세요..."
+                      value={editForm.content}
+                      onChange={(e) =>
+                        setEditForm(prev => ({
+                          ...prev,
+                          content: e.target.value
+                        }))
+                      }
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-fileName">파일명</Label>
+                    <Input
+                      id="edit-fileName"
+                      type="text"
+                      placeholder="파일명을 입력하세요..."
+                      value={editForm.fileName}
+                      onChange={(e) =>
+                        setEditForm(prev => ({
+                          ...prev,
+                          fileName: e.target.value
+                        }))
+                      }
+                      className="text-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingGuide(null);
+                }}
+              >
+                취소
+              </Button>
+              <Button onClick={handleUpdateGuide}>
+                수정 완료
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

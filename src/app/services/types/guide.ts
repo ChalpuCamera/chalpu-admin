@@ -12,6 +12,12 @@ export interface Guide {
   tags: string[];
 }
 
+export interface GuideUpdateRequest {
+  content?: string;
+  subCategoryId?: number;
+  fileName?: string;
+}
+
 export interface GuidePresignedUrlRequest {
   fileName: string;
 }

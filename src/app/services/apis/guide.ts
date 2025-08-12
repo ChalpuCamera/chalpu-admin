@@ -218,6 +218,18 @@ export const getSubCategories = async (): Promise<SubCategoryListResponse> => {
 };
 
 /**
+ * 가이드 정보 수정 (Admin)
+ */
+export const updateGuide = async (
+  guideId: number,
+  data: { content?: string; subCategoryId?: number; fileName?: string }
+): Promise<void> => {
+  await apiClient.patch(`/api/guides/${guideId}`, data, {
+    headers: getAdminHeaders(),
+  });
+};
+
+/**
  * 가이드 파일 쌍 전체 업로드 프로세스 (통합 함수)
  * 1. Presigned URL 생성
  * 2. S3에 이미지와 XML 파일 업로드
