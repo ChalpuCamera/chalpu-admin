@@ -32,11 +32,11 @@ export interface GuidePresignedUrlResponse {
 }
 
 export interface GuideRegisterRequest {
-  guideS3Key: string; // XML 파일
+  guideS3Key: string | null; // XML 파일 (nullable)
   svgS3Key: string; // SVG 파일
   fileName: string;
   imageS3Key: string; // 이미지 파일
-  content?: string;
+  content?: string | null;
   subCategoryId: number;
   tags?: string[];
 }

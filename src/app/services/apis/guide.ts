@@ -172,12 +172,12 @@ export const uploadGuideToS3 = async (
  * 가이드 정보 등록 (Admin) - S3 업로드 완료 후 호출
  */
 export const registerGuide = async (
-  guideS3Key: string,
+  guideS3Key: string | null,
   svgS3Key: string,
   fileName: string,
   imageS3Key: string,
   subCategoryId: number,
-  content?: string,
+  content?: string | null,
   tags?: string[]
 ): Promise<GuideRegisterResponse> => {
   const request: GuideRegisterRequest = {
@@ -215,7 +215,16 @@ export const getSubCategories = async (): Promise<SubCategoryListResponse> => {
   const response = await apiClient.get<SubCategoryListResponse>("/api/sub-categories", {
     headers: getAdminHeaders(),
   });
-  return response.data;
+  
+  // 한글 순서로 정렬
+  const sortedResult = response.data.result.sort((a, b) => 
+    a.name.localeCompare(b.name, 'ko')
+  );
+  
+  return {
+    ...response.data,
+    result: sortedResult
+  };
 };
 
 /**
@@ -259,21 +268,31 @@ export const updateGuide = async (
 /**
  * 가이드 파일 쌍 전체 업로드 프로세스 (통합 함수)
  * 1. Presigned URL 생성
- * 2. S3에 이미지와 XML 파일 업로드
+ * 2. S3에 이미지와 SVG 파일 업로드 (XML은 선택적)
  * 3. 서버에 메타데이터 등록
  */
 export const uploadGuidePair = async (
   imageFile: File,
-  xmlFile: File,
+  xmlFile: File | null,
   svgFile: File,
   fileName: string,
   subCategoryId: number,
-  content?: string,
+  content?: string | null,
   tags?: string[],
   onProgress?: (progress: number) => void
 ): Promise<Guide> => {
   try {
+    console.log(`📋 업로드 시작: ${fileName}`);
+    console.log(`파일 정보:`, {
+      imageFile: imageFile.name,
+      svgFile: svgFile.name,
+      xmlFile: xmlFile?.name || 'null',
+      subCategoryId,
+      tags: tags?.length || 0
+    });
+    
     // 1. Presigned URL 생성
+    console.log(`🔗 Presigned URL 생성 중: ${fileName}`);
     const {
       guideUploadUrl,
       guideS3Key,
@@ -282,42 +301,67 @@ export const uploadGuidePair = async (
       svgUploadUrl,
       svgS3Key,
     } = await getGuidePresignedUrl(fileName);
+    
+    console.log(`✅ Presigned URL 생성 완료:`, {
+      imageS3Key,
+      svgS3Key,
+      guideS3Key
+    });
 
     // 2. 이미지 파일 S3에 업로드
+    console.log(`📷 이미지 파일 업로드 시작: ${imageFile.name}`);
     await uploadGuideToS3(imageUploadUrl, imageFile, (progress) => {
       if (onProgress) {
-        onProgress(progress.percentage * 0.4); // 40%까지
+        onProgress(progress.percentage * 0.5); // XML 없으면 50%까지
       }
     });
+    console.log(`✅ 이미지 파일 업로드 완료: ${imageFile.name}`);
 
-    // 3. XML 파일 S3에 업로드
-    await uploadGuideToS3(guideUploadUrl, xmlFile, (progress) => {
+    // 3. XML 파일 S3에 업로드 (null이 아닐 때만)
+    let finalGuideS3Key: string | null = null;
+    if (xmlFile) {
+      console.log(`📄 XML 파일 업로드 시작: ${xmlFile.name}`);
+      await uploadGuideToS3(guideUploadUrl, xmlFile, (progress) => {
+        if (onProgress) {
+          onProgress(50 + progress.percentage * 0.25); // 50%~75%
+        }
+      });
+      console.log(`✅ XML 파일 업로드 완료: ${xmlFile.name}`);
+      finalGuideS3Key = guideS3Key;
+    } else {
+      // XML 파일이 없으면 null로 설정
+      console.log(`⏭️ XML 파일 업로드 건너뜀 - null로 설정`);
+      finalGuideS3Key = null;
       if (onProgress) {
-        onProgress(40 + progress.percentage * 0.4); // 40%~80%
+        onProgress(75); // XML 업로드 건너뜀
       }
-    });
+    }
 
     // 4. SVG 파일 S3에 업로드
+    console.log(`🎨 SVG 파일 업로드 시작: ${svgFile.name}`);
     await uploadGuideToS3(svgUploadUrl, svgFile, (progress) => {
       if (onProgress) {
-        onProgress(80 + progress.percentage * 0.2); // 80%~100%
+        onProgress(75 + progress.percentage * 0.25); // 75%~100%
       }
     });
+    console.log(`✅ SVG 파일 업로드 완료: ${svgFile.name}`);
 
     // 5. 서버에 메타데이터 등록
+    console.log(`📝 서버에 메타데이터 등록 시작: ${fileName}`);
     if (onProgress) {
       onProgress(80); // 80%
     }
 
     const guide = await registerGuide(
-      guideS3Key,
+      finalGuideS3Key,
       svgS3Key,
       fileName,
       imageS3Key,
       subCategoryId,
-      content,
+      content, // null 그대로 전송
       tags
     );
+    console.log(`✅ 메타데이터 등록 완료: ${fileName}`);
 
     if (onProgress) {
       onProgress(100); // 100%
