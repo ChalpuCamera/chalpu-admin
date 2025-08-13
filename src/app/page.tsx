@@ -150,44 +150,45 @@ export default function Home() {
   const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] =
     useState<string>("all");
 
-  // 파일 트리플 업로드 관련 상태 (SVG, XML, 이미지)
-  interface FileUploadTriple {
-    id: string;
-    svgFile: File | null; // SVG 파일 (UI 미리보기용)
-    xmlFile: File | null; // XML 파일 (안드로이드용, SVG에서 자동 변환)
-    imageFile: File | null; // 이미지 파일
-    fileName: string;
-    uploading: boolean;
-    progress: number;
-    error: string | null;
-    completed: boolean;
-    nameMatchError: boolean;
-    category: number; // 선택된 서브카테고리 ID
-    content?: string; // 가이드 설명
-    tags: string[]; // 태그 목록
-    tagInput: string; // 태그 입력 필드
-    isComposing: boolean; // 한글 입력 상태 관리
-  }
+  // 파일 트리플 업로드 관련 상태 (현재 사용 안함 - 일괄등록으로 대체)
+  // interface FileUploadTriple {
+  //   id: string;
+  //   svgFile: File | null; // SVG 파일 (UI 미리보기용)
+  //   xmlFile: File | null; // XML 파일 (안드로이드용, SVG에서 자동 변환)
+  //   imageFile: File | null; // 이미지 파일
+  //   fileName: string;
+  //   uploading: boolean;
+  //   progress: number;
+  //   error: string | null;
+  //   completed: boolean;
+  //   nameMatchError: boolean;
+  //   category: number; // 선택된 서브카테고리 ID
+  //   content?: string; // 가이드 설명
+  //   tags: string[]; // 태그 목록
+  //   tagInput: string; // 태그 입력 필드
+  //   isComposing: boolean; // 한글 입력 상태 관리
+  // }
 
-  const [uploadTriples, setUploadTriples] = useState<FileUploadTriple[]>([
-    {
-      id: "triple-1",
-      svgFile: null,
-      xmlFile: null,
-      imageFile: null,
-      fileName: "",
-      uploading: false,
-      progress: 0,
-      error: null,
-      completed: false,
-      nameMatchError: false,
-      category: 1, // 기본값으로 첫 번째 서브카테고리 ID 설정
-      content: "",
-      tags: [],
-      tagInput: "",
-      isComposing: false,
-    },
-  ]);
+  // 기존 개별 업로드 기능 (현재 사용 안함 - 일괄등록으로 대체)
+  // const [uploadTriples, setUploadTriples] = useState<FileUploadTriple[]>([
+  //   {
+  //     id: "triple-1",
+  //     svgFile: null,
+  //     xmlFile: null,
+  //     imageFile: null,
+  //     fileName: "",
+  //     uploading: false,
+  //     progress: 0,
+  //     error: null,
+  //     completed: false,
+  //     nameMatchError: false,
+  //     category: 1, // 기본값으로 첫 번째 서브카테고리 ID 설정
+  //     content: "",
+  //     tags: [],
+  //     tagInput: "",
+  //     isComposing: false,
+  //   },
+  // ]);
 
   // 일괄등록 관련 상태
   const [batchFiles, setBatchFiles] = useState<File[]>([]);
@@ -226,16 +227,16 @@ export default function Home() {
       const response = await getSubCategories();
       setSubCategories(response.result);
 
-      // 서브카테고리 로드 후 업로드 트리플의 기본 카테고리 설정
-      if (response.result.length > 0) {
-        setUploadTriples((prev) =>
-          prev.map((triple) => ({
-            ...triple,
-            category:
-              triple.category === 1 ? response.result[0].id : triple.category,
-          }))
-        );
-      }
+      // 서브카테고리 로드 후 업로드 트리플의 기본 카테고리 설정 (현재 사용 안함)
+      // if (response.result.length > 0) {
+      //   setUploadTriples((prev) =>
+      //     prev.map((triple) => ({
+      //       ...triple,
+      //       category:
+      //         triple.category === 1 ? response.result[0].id : triple.category,
+      //     }))
+      //   );
+      // }
     } catch (error) {
       console.error("Failed to load sub-categories:", error);
       toast.error("서브카테고리 목록을 불러오는데 실패했습니다.");
@@ -568,7 +569,7 @@ export default function Home() {
       console.error("일괄등록 처리 중 오류:", error);
       toast.error("일괄등록 처리 중 오류가 발생했습니다.");
     }
-  }, [batchMatchedPairs, loadGuides, authToken]);
+  }, [batchMatchedPairs, loadGuides]);
 
   // 토큰 테스트 함수
   const testToken = async () => {
@@ -600,245 +601,245 @@ export default function Home() {
     updateBatchMatching();
   }, [updateBatchMatching]);
 
-  // 새 파일 트리플 추가
-  const addNewTriple = () => {
-    const newTriple: FileUploadTriple = {
-      id: `triple-${Date.now()}`,
-      svgFile: null,
-      xmlFile: null,
-      imageFile: null,
-      fileName: "",
-      uploading: false,
-      progress: 0,
-      error: null,
-      completed: false,
-      nameMatchError: false,
-      category: subCategories.length > 0 ? subCategories[0].id : 1,
-      content: "",
-      tags: [],
-      tagInput: "",
-      isComposing: false,
-    };
-    setUploadTriples((prev) => [...prev, newTriple]);
-  };
+  // 새 파일 트리플 추가 (현재 사용 안함)
+  // const addNewTriple = () => {
+  //   const newTriple: FileUploadTriple = {
+  //     id: `triple-${Date.now()}`,
+  //     svgFile: null,
+  //     xmlFile: null,
+  //     imageFile: null,
+  //     fileName: "",
+  //     uploading: false,
+  //     progress: 0,
+  //     error: null,
+  //     completed: false,
+  //     nameMatchError: false,
+  //     category: subCategories.length > 0 ? subCategories[0].id : 1,
+  //     content: "",
+  //     tags: [],
+  //     tagInput: "",
+  //     isComposing: false,
+  //   };
+  //   setUploadTriples((prev) => [...prev, newTriple]);
+  // };
 
-  // 파일 트리플 제거
-  const removeTriple = (id: string) => {
-    setUploadTriples((prev) => prev.filter((triple) => triple.id !== id));
-  };
+  // 파일 트리플 제거 (현재 사용 안함)
+  // const removeTriple = (id: string) => {
+  //   setUploadTriples((prev) => prev.filter((triple) => triple.id !== id));
+  // };
 
-  // 파일명 매칭 검증 함수 (3개 파일)
-  const validateTripleFileNameMatch = (
-    svgFile: File | null,
-    imageFile: File | null
-  ) => {
-    if (!svgFile || !imageFile) return { isValid: true, fileName: "" };
+  // 파일명 매칭 검증 함수 (현재 사용 안함)
+  // const validateTripleFileNameMatch = (
+  //   svgFile: File | null,
+  //   imageFile: File | null
+  // ) => {
+  //   if (!svgFile || !imageFile) return { isValid: true, fileName: "" };
 
-    const svgName = svgFile.name.replace(/\.svg$/i, "");
-    const imageName = imageFile.name.replace(/\.(png|jpg|jpeg)$/i, "");
+  //   const svgName = svgFile.name.replace(/\.svg$/i, "");
+  //   const imageName = imageFile.name.replace(/\.(png|jpg|jpeg)$/i, "");
 
-    return {
-      isValid: svgName === imageName,
-      fileName: svgName === imageName ? svgName : "",
-    };
-  };
+  //   return {
+  //     isValid: svgName === imageName,
+  //     fileName: svgName === imageName ? svgName : "",
+  //   };
+  // };
 
-  // SVG 파일 선택 (XML은 자동 생성)
-  const handleSvgSelect = async (tripleId: string, file: File) => {
-    try {
-      // SVG에서 XML 자동 생성 (XML 업로드 안함으로 주석 처리)
-      // const xmlFile = await convertSvgToAndroidXml(file);
-      const xmlFile = null;
+  // SVG 파일 선택 (현재 사용 안함 - 일괄등록 기능으로 대체)
+  // const handleSvgSelect = async (tripleId: string, file: File) => {
+  //   try {
+  //     // SVG에서 XML 자동 생성 (XML 업로드 안함으로 주석 처리)
+  //     // const xmlFile = await convertSvgToAndroidXml(file);
+  //     const xmlFile = null;
 
-      setUploadTriples((prev) =>
-        prev.map((triple) => {
-          if (triple.id === tripleId) {
-            const validation = validateTripleFileNameMatch(
-              file,
-              triple.imageFile
-            );
-            return {
-              ...triple,
-              svgFile: file,
-              xmlFile: xmlFile,
-              fileName: validation.fileName,
-              nameMatchError: !validation.isValid,
-            };
-          }
-          return triple;
-        })
-      );
+  //     setUploadTriples((prev) =>
+  //       prev.map((triple) => {
+  //         if (triple.id === tripleId) {
+  //           const validation = validateTripleFileNameMatch(
+  //             file,
+  //             triple.imageFile
+  //           );
+  //           return {
+  //             ...triple,
+  //             svgFile: file,
+  //             xmlFile: xmlFile,
+  //             fileName: validation.fileName,
+  //             nameMatchError: !validation.isValid,
+  //           };
+  //         }
+  //         return triple;
+  //       })
+  //     );
 
-      toast.success(`${file.name}을 선택하고 XML을 자동 생성했습니다.`);
-    } catch (error) {
-      console.error("SVG 처리 중 오류:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "SVG 처리 중 오류가 발생했습니다."
-      );
-    }
-  };
+  //     toast.success(`${file.name}을 선택하고 XML을 자동 생성했습니다.`);
+  //   } catch (error) {
+  //     console.error("SVG 처리 중 오류:", error);
+  //     toast.error(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "SVG 처리 중 오류가 발생했습니다."
+  //     );
+  //   }
+  // };
 
-  // 이미지 파일 선택
-  const handleImageSelect = (tripleId: string, file: File) => {
-    setUploadTriples((prev) =>
-      prev.map((triple) => {
-        if (triple.id === tripleId) {
-          const validation = validateTripleFileNameMatch(triple.svgFile, file);
-          return {
-            ...triple,
-            imageFile: file,
-            fileName: validation.fileName,
-            nameMatchError: !validation.isValid,
-          };
-        }
-        return triple;
-      })
-    );
-  };
+  // 이미지 파일 선택 (현재 사용 안함 - 일괄등록 기능으로 대체)
+  // const handleImageSelect = (tripleId: string, file: File) => {
+  //   setUploadTriples((prev) =>
+  //     prev.map((triple) => {
+  //       if (triple.id === tripleId) {
+  //         const validation = validateTripleFileNameMatch(triple.svgFile, file);
+  //         return {
+  //           ...triple,
+  //           imageFile: file,
+  //           fileName: validation.fileName,
+  //           nameMatchError: !validation.isValid,
+  //         };
+  //       }
+  //       return triple;
+  //     })
+  //   );
+  // };
 
-  // SVG 파일 제거 (XML도 함께 제거)
-  const removeSvgFile = (tripleId: string) => {
-    setUploadTriples((prev) =>
-      prev.map((triple) => {
-        if (triple.id === tripleId) {
-          // 이미지 파일이 있으면 이미지 파일명으로, 없으면 빈 문자열
-          const fileName = triple.imageFile
-            ? triple.imageFile.name.replace(/\.(png|jpg|jpeg)$/i, "")
-            : "";
-          return {
-            ...triple,
-            svgFile: null,
-            xmlFile: null, // SVG가 제거되면 XML도 함께 제거
-            fileName,
-            nameMatchError: false,
-          };
-        }
-        return triple;
-      })
-    );
-    // 파일 input 초기화
-    const input = document.getElementById(
-      `svg-${tripleId}`
-    ) as HTMLInputElement;
-    if (input) input.value = "";
-  };
+  // SVG 파일 제거 (현재 사용 안함)
+  // const removeSvgFile = (tripleId: string) => {
+  //   setUploadTriples((prev) =>
+  //     prev.map((triple) => {
+  //       if (triple.id === tripleId) {
+  //         // 이미지 파일이 있으면 이미지 파일명으로, 없으면 빈 문자열
+  //         const fileName = triple.imageFile
+  //           ? triple.imageFile.name.replace(/\.(png|jpg|jpeg)$/i, "")
+  //           : "";
+  //         return {
+  //           ...triple,
+  //           svgFile: null,
+  //           xmlFile: null, // SVG가 제거되면 XML도 함께 제거
+  //           fileName,
+  //           nameMatchError: false,
+  //         };
+  //       }
+  //       return triple;
+  //     })
+  //   );
+  //   // 파일 input 초기화
+  //   const input = document.getElementById(
+  //     `svg-${tripleId}`
+  //   ) as HTMLInputElement;
+  //   if (input) input.value = "";
+  // };
 
-  // 이미지 파일 제거
-  const removeImageFile = (tripleId: string) => {
-    setUploadTriples((prev) =>
-      prev.map((triple) => {
-        if (triple.id === tripleId) {
-          // SVG 파일이 있으면 SVG 파일명으로, 없으면 빈 문자열
-          const fileName = triple.svgFile
-            ? triple.svgFile.name.replace(/\.svg$/i, "")
-            : "";
-          return {
-            ...triple,
-            imageFile: null,
-            fileName,
-            nameMatchError: false,
-          };
-        }
-        return triple;
-      })
-    );
-    // 파일 input 초기화
-    const input = document.getElementById(
-      `image-${tripleId}`
-    ) as HTMLInputElement;
-    if (input) input.value = "";
-  };
+  // 이미지 파일 제거 (현재 사용 안함)
+  // const removeImageFile = (tripleId: string) => {
+  //   setUploadTriples((prev) =>
+  //     prev.map((triple) => {
+  //       if (triple.id === tripleId) {
+  //         // SVG 파일이 있으면 SVG 파일명으로, 없으면 빈 문자열
+  //         const fileName = triple.svgFile
+  //           ? triple.svgFile.name.replace(/\.svg$/i, "")
+  //           : "";
+  //         return {
+  //           ...triple,
+  //           imageFile: null,
+  //           fileName,
+  //           nameMatchError: false,
+  //         };
+  //       }
+  //       return triple;
+  //     })
+  //   );
+  //   // 파일 input 초기화
+  //   const input = document.getElementById(
+  //     `image-${tripleId}`
+  //   ) as HTMLInputElement;
+  //   if (input) input.value = "";
+  // };
 
-  // 개별 파일 트리플 업로드
-  const uploadTriple = async (triple: FileUploadTriple) => {
-    if (!triple.imageFile || !triple.xmlFile || !triple.svgFile || !authToken)
-      return;
+  // 개별 파일 트리플 업로드 (현재 사용 안함 - 일괄등록으로 대체)
+  // const uploadTriple = async (triple: FileUploadTriple) => {
+  //   if (!triple.imageFile || !triple.xmlFile || !triple.svgFile || !authToken)
+  //     return;
 
-    setUploadTriples((prev) =>
-      prev.map((t) =>
-        t.id === triple.id
-          ? { ...t, uploading: true, progress: 0, error: null }
-          : t
-      )
-    );
+  //   setUploadTriples((prev) =>
+  //     prev.map((t) =>
+  //       t.id === triple.id
+  //         ? { ...t, uploading: true, progress: 0, error: null }
+  //         : t
+  //     )
+  //   );
 
-    try {
-      await uploadGuidePair(
-        triple.imageFile,
-        triple.xmlFile!,
-        triple.svgFile!,
-        triple.fileName,
-        triple.category,
-        triple.content,
-        triple.tags,
-        (progress) => {
-          setUploadTriples((prev) =>
-            prev.map((t) => (t.id === triple.id ? { ...t, progress } : t))
-          );
-        }
-      );
+  //   try {
+  //     await uploadGuidePair(
+  //       triple.imageFile,
+  //       triple.xmlFile!,
+  //       triple.svgFile!,
+  //       triple.fileName,
+  //       triple.category,
+  //       triple.content,
+  //       triple.tags,
+  //       (progress) => {
+  //         setUploadTriples((prev) =>
+  //           prev.map((t) => (t.id === triple.id ? { ...t, progress } : t))
+  //         );
+  //       }
+  //     );
 
-      setUploadTriples((prev) =>
-        prev.map((t) =>
-          t.id === triple.id
-            ? { ...t, progress: 100, completed: true, uploading: false }
-            : t
-        )
-      );
+  //     setUploadTriples((prev) =>
+  //       prev.map((t) =>
+  //         t.id === triple.id
+  //           ? { ...t, progress: 100, completed: true, uploading: false }
+  //           : t
+  //       )
+  //     );
 
-      // 개별 업로드 완료 후 가이드 목록 새로고침
-      toast.success(`${triple.fileName} 업로드 완료`);
-      loadGuides();
-    } catch (error) {
-      console.error("업로드 실패:", error);
-      setUploadTriples((prev) =>
-        prev.map((t) =>
-          t.id === triple.id
-            ? {
-                ...t,
-                uploading: false,
-                error: error instanceof Error ? error.message : "업로드 실패",
-              }
-            : t
-        )
-      );
-      toast.error(`${triple.fileName} 업로드 실패`);
-    }
-    window.location.reload();
-  };
+  //     // 개별 업로드 완료 후 가이드 목록 새로고침
+  //     toast.success(`${triple.fileName} 업로드 완료`);
+  //     loadGuides();
+  //   } catch (error) {
+  //     console.error("업로드 실패:", error);
+  //     setUploadTriples((prev) =>
+  //       prev.map((t) =>
+  //         t.id === triple.id
+  //           ? {
+  //               ...t,
+  //               uploading: false,
+  //               error: error instanceof Error ? error.message : "업로드 실패",
+  //             }
+  //           : t
+  //       )
+  //     );
+  //     toast.error(`${triple.fileName} 업로드 실패`);
+  //   }
+  //   window.location.reload();
+  // };
 
-  // 전체 업로드
-  const uploadAll = async () => {
-    const validTriples = uploadTriples.filter(
-      (triple) =>
-        triple.imageFile &&
-        triple.xmlFile &&
-        triple.svgFile &&
-        !triple.completed &&
-        !triple.nameMatchError
-    );
+  // 전체 업로드 (현재 사용 안함 - 일괄등록 기능으로 대체)
+  // const uploadAll = async () => {
+  //   const validTriples = uploadTriples.filter(
+  //     (triple) =>
+  //       triple.imageFile &&
+  //       triple.xmlFile &&
+  //       triple.svgFile &&
+  //       !triple.completed &&
+  //       !triple.nameMatchError
+  //   );
 
-    let successCount = 0;
-    for (const triple of validTriples) {
-      try {
-        await uploadTriple(triple);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to upload triple ${triple.fileName}:`, error);
-      }
-    }
+  //   let successCount = 0;
+  //   for (const triple of validTriples) {
+  //     try {
+  //       await uploadTriple(triple);
+  //       successCount++;
+  //     } catch (error) {
+  //       console.error(`Failed to upload triple ${triple.fileName}:`, error);
+  //     }
+  //   }
 
-    // 업로드 완료 후 가이드 목록 새로고침 (성공한 업로드가 있을 때만)
-    if (successCount > 0) {
-      toast.success(
-        `${successCount}개의 파일 트리플이 성공적으로 업로드되었습니다.`
-      );
-      loadGuides();
-    }
-    window.location.reload();
-  };
+  //   // 업로드 완료 후 가이드 목록 새로고침 (성공한 업로드가 있을 때만)
+  //   if (successCount > 0) {
+  //     toast.success(
+  //       `${successCount}개의 파일 트리플이 성공적으로 업로드되었습니다.`
+  //     );
+  //     loadGuides();
+  //   }
+  //   window.location.reload();
+  // };
 
   // 단일 가이드 삭제 처리
   const handleDeleteGuide = async (guide: Guide) => {
