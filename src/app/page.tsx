@@ -74,7 +74,7 @@ const SvgImagePreview = ({
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               onLoad={handleSvgLoad}
               onError={handleSvgError}
-              className={`object-contain transition-opacity duration-300 ${
+              className={`bg-gray-400 object-contain transition-opacity duration-300 ${
                 svgLoading ? "opacity-0" : "opacity-100"
               }`}
             />
