@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# 모든 검색엔진에서 완전 차단
+Sitemap:
